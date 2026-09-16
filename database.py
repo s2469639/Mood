@@ -5,10 +5,9 @@ from typing import Any, Dict, List
 
 DB_NAME = "moodify.db"
 
-
 @contextmanager
 def get_db_connection():
-    """데이터베이스 연결 컨텍스트 매니저"""
+    """데이터베이스 연결 컨텍스트 매니저 (PEP 8 준수)"""
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     try:
@@ -16,9 +15,8 @@ def get_db_connection():
     finally:
         conn.close()
 
-
 def init_db():
-    """1. 테이블 생성 함수"""
+    """1. 테이블 생성 및 인덱스 초기화"""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -37,75 +35,52 @@ def init_db():
         """)
         conn.commit()
 
-
 def save_history(user_text: str, songs: List[Dict[str, Any]]) -> None:
-    """[app.py 인터페이스 맞춤]
-
-    추천받은 곡 목록 전체를 단일 트랜잭션으로 일괄 저장
-    """
+    """[app.py 인터페이스 호환] 추천받은 곡 목록 전체를 단일 트랜잭션으로 일괄 저장"""
     if not songs:
         return
 
-    # 날짜 및 시간 포맷팅 (YYYY-MM-DD HH:MM:SS)
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
     records = [
         (
             now_str,
             user_text,
             song.get("title", "Unknown Title"),
             song.get("artist", "Unknown Artist"),
-            song.get("preview_url"),
-            song.get("artwork"),
+            song.get("preview_url", ""),
+            # artwork와 album_art 두 변수명 모두 완벽 호환
+            song.get("artwork") or song.get("album_art", "")
         )
         for song in songs
     ]
 
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.executemany(
-            """
+        cursor.executemany("""
             INSERT INTO history (date, mood, title, artist, preview_url, artwork)
             VALUES (?, ?, ?, ?, ?, ?)
-        """,
-            records,
-        )
+        """, records)
         conn.commit()
 
-
-def save_music_history(
-    date: str,
-    mood: str,
-    title: str,
-    artist: str,
-    preview_url: str,
-    artwork: str,
-):
-    """단일 곡 저장 함수 (레거시/개별 저장용 유지)"""
+def save_music_history(date: str, mood: str, title: str, artist: str, preview_url: str, artwork: str):
+    """단일 곡 개별 저장 함수 (레거시 지원)"""
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             INSERT INTO history (date, mood, title, artist, preview_url, artwork)
             VALUES (?, ?, ?, ?, ?, ?)
-        """,
-            (date, mood, title, artist, preview_url, artwork),
-        )
+        """, (date, mood, title, artist, preview_url, artwork))
         conn.commit()
 
-
-def get_latest_history(limit: int = 20) -> List[Dict[str, Any]]:
+def get_latest_history(limit: int = 50) -> List[Dict[str, Any]]:
     """저장된 기록을 최신순으로 반환"""
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT id, date, mood, title, artist, preview_url, artwork
             FROM history
             ORDER BY id DESC
             LIMIT ?
-        """,
-            (limit,),
-        )
+        """, (limit,))
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
