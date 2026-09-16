@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 import urllib.parse
 from openai import OpenAI
 import requests
+#최유진 바보
 
 # ==========================================
 # 1. 감성 음악 큐레이터 및 DJ 시스템 프롬프트
