@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moodify - 감성 음악 추천</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <style>
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background: linear-gradient(180deg, #F5E9FF 0%, #FFF4F8 45%, #FFFFFF 75%, #F0FFF4 100%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 10px 25px -5px rgba(138, 82, 243, 0.08);
+        }
+        .btn-gradient {
+            background: linear-gradient(90deg, #8A52F3 0%, #DE359D 100%);
+            box-shadow: 0 8px 20px -3px rgba(222, 53, 157, 0.35);
+        }
+    </style>
+</head>
+<body class="text-[#2D1457] flex flex-col items-center py-10 px-4">
+    <div class="w-full max-w-md mx-auto space-y-6">
+        <header class="text-center space-y-1">
+            <h1 class="text-3xl font-extrabold tracking-tight text-[#8A52F3]">Moodify</h1>
+            <p class="text-sm font-medium text-[#7E6E90]">What's your mood now?</p>
+        </header>
+
+        <div class="glass-card rounded-3xl p-5 space-y-4">
+            <textarea id="moodInput" rows="3" class="w-full bg-white/70 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#8A52F3] placeholder-[#A396B2] resize-none" placeholder="지금 상황이나 감정을 편하게 적어보세요... (예: 비 오는 날 혼자 카페에 앉아있어)"></textarea>
+            
+            <div class="flex flex-wrap gap-2 text-xs">
+                <button onclick="setMood('🏃 러닝 중 활기찬 에너지')" class="px-3 py-1.5 rounded-full bg-[#F3E8FF] text-[#7E22CE] font-semibold hover:scale-105 transition">🏃 러닝</button>
+                <button onclick="setMood('🌙 새벽 감성 촉촉한 노래')" class="px-3 py-1.5 rounded-full bg-[#EDE9FE] text-[#6D28D9] font-semibold hover:scale-105 transition">🌙 새벽 감성</button>
+                <button onclick="setMood('☕ 따뜻한 오후 카페')" class="px-3 py-1.5 rounded-full bg-[#F5EEFA] text-[#5B21B6] font-semibold hover:scale-105 transition">☕ 카페</button>
+                <button onclick="setMood('🌸 설레는 봄 산책')" class="px-3 py-1.5 rounded-full bg-[#FCE7F3] text-[#BE185D] font-semibold hover:scale-105 transition">🌸 봄 산책</button>
+            </div>
+
+            <button onclick="requestRecommendation()" id="submitBtn" class="btn-gradient w-full py-3.5 rounded-2xl text-white font-bold text-base active:scale-[0.98] transition">
+                음악 찾아보기 →
+            </button>
+        </div>
+
+        <div id="resultSection" class="space-y-4 hidden">
+            <h2 class="text-lg font-bold text-[#2D1457] flex items-center justify-between">
+                <span>오늘의 무드 플레이리스트</span>
+                <span id="analysisBadge" class="text-xs bg-purple-100 text-[#8A52F3] px-2.5 py-1 rounded-full font-medium"></span>
+            </h2>
+            <div id="songGrid" class="grid grid-cols-2 gap-3"></div>
+        </div>
+    </div>
+
+    <audio id="globalAudio"></audio>
+
+    <script>
+        function setMood(text) {
+            document.getElementById('moodInput').value = text;
+        }
+
+        async function requestRecommendation() {
+            const text = document.getElementById('moodInput').value.trim();
+            if (!text) {
+                alert('문장을 입력해주세요!');
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            btn.innerText = '음악을 큐레이션 중...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/recommend', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text: text })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    renderSongs(data.songs, data.analysis);
+                } else {
+                    alert(data.message || '추천에 실패했습니다.');
+                }
+            } catch (err) {
+                alert('서버와 통신할 수 없습니다.');
+            } finally {
+                btn.innerText = '음악 찾아보기 →';
+                btn.disabled = false;
+            }
+        }
+
+        function renderSongs(songs, analysis) {
+            const section = document.getElementById('resultSection');
+            const grid = document.getElementById('songGrid');
+            const badge = document.getElementById('analysisBadge');
+
+            badge.innerText = `#${analysis.mood || '감성'} #${analysis.genre || '음악'}`;
+            grid.innerHTML = '';
+
+            songs.forEach(song => {
+                const card = document.createElement('div');
+                card.className = 'glass-card rounded-2xl p-3 flex flex-col items-center space-y-2 cursor-pointer hover:shadow-lg transition';
+                card.innerHTML = `
+                    <img src="${song.artwork || 'https://via.placeholder.com/300'}" class="w-full aspect-square object-cover rounded-xl shadow-sm">
+                    <div class="w-full text-left">
+                        <p class="text-xs font-bold text-[#2D1457] truncate">${song.title}</p>
+                        <p class="text-[11px] text-[#7E6E90] truncate">${song.artist}</p>
+                    </div>
+                    <div class="w-full flex justify-between items-center pt-1 text-[10px]">
+                        <button onclick="playAudio('${song.preview_url}')" class="text-[#8A52F3] font-semibold">미리듣기 ▶</button>
+                        <a href="${song.yt_music_url}" target="_blank" class="text-rose-500 font-semibold">YT Music</a>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            section.classList.remove('hidden');
+        }
+
+        function playAudio(url) {
+            if (!url) {
+                alert('미리듣기 음원이 제공되지 않는 곡입니다.');
+                return;
+            }
+            const audio = document.getElementById('globalAudio');
+            if (audio.src === url && !audio.paused) {
+                audio.pause();
+            } else {
+                audio.src = url;
+                audio.play();
+            }
+        }
+    </script>
+</body>
+</html>
