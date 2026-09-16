@@ -32,6 +32,8 @@ async function analyzeUserMood(userPrompt: string): Promise<MoodAnalysisResult> 
     },
   });
 
+
+  
   try {
     return JSON.parse(response.text.trim()) as MoodAnalysisResult;
   } catch (error) {
