@@ -9,7 +9,8 @@ interface MoodAnalysisResult {
   moodKeywords: string[];
   recommendedVibe: string;
 }
-
+// 
+// DFDS
 async function analyzeUserMood(userPrompt: string): Promise<MoodAnalysisResult> {
   const systemInstruction = `
     사용자의 입력 문장을 분석하여 음악 추천에 필요한 파라미터를 JSON 형식으로 추출해주세요.
